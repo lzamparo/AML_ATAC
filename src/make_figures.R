@@ -3,65 +3,215 @@ require(ggplot2)
 require(scales)
 require(ggrepel)
 require(cowplot)
+require(ChIPseeker)
+require(TxDb.Hsapiens.UCSC.hg19.knownGene)
 
-# plot pie chart of atlas, differentiable peaks atlas
 
 # load atlas file
-setwd("~/projects/AML_ATAC/peaks")
-atlas = read.csv("annotated_atlas_reduced.csv")
-atlas_dt = data.table(atlas)
-setnames(atlas_dt, "seqnames", "chrom")
-setnames(atlas_dt, "annot", "annotation")
+setwd("~/projects/AML_ATAC/results/peaks")
+txdb = TxDb.Hsapiens.UCSC.hg19.knownGene
+atlas_anno <- annotatePeak("all_conditions_peak_atlas.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+atlas = data.table(as.data.frame(atlas_anno))
+rm(atlas_anno)
+setnames(atlas, "seqnames", "chrom")
+atlas[grepl("Exon",annotation), simple_annotation := "Exon"]
+atlas[grepl("Intron",annotation), simple_annotation := "Intron"]
+atlas[grepl("Promoter",annotation), simple_annotation := "Promoter"]
+atlas[grepl("Intergenic",annotation), simple_annotation := "Intergenic"]
+atlas[grepl("Downstream",annotation), simple_annotation := "Intergenic"]
+atlas[grepl("5' UTR",annotation), simple_annotation := "5' UTR"]
+atlas[grepl("3' UTR",annotation), simple_annotation := "3' UTR"]
+setnames(atlas, c("annotation", "simple_annotation"), c("complex_annotation", "annotation"))
 
-total = atlas_dt[,.N]
-grouped_peaks = atlas_dt[,.N, by=annotation]
-grouped_peaks[, pos := cumsum(N) - N / 4 ]
+# Four panel plot of atlas peaks
+
+# (a) Peaks by annotation
+total = atlas[,.N]
+grouped_peaks = atlas[,.N, by=annotation]
 grouped_peaks[, percentage := N / total]
-#grouped_peaks[annotation %in% c("intron", "promoter", "intergenic"), pos := pos - 6000]
+pba <- ggplot(grouped_peaks, aes(x=annotation, fill=annotation)) + 
+  geom_col(aes(y=N)) + 
+  geom_text(aes(x=annotation, y=N, label=percent(percentage)), vjust = -.50) +
+  scale_y_continuous(breaks=c(0,10000,25000,50000,75000,100000,125000,150000)) +
+  ggtitle("Number of peaks by annotation") +
+  ylab("Number of peaks") + 
+  xlab("Peak annotation")
+
+
+# (b) Peak length by chromosome
+plc <- ggplot(atlas[width < 2500,], aes(x = width, y = chrom)) +
+  geom_density_ridges(stat = "binline",bins=50) + 
+  xlim(c(0,2500)) + 
+  xlab("Peak length (bp)") + ylab("Chromosome") + 
+  theme_ridges(grid = FALSE)
+
+
+# (c) Fine-grained histogram of peak lengths
+fgpl <- ggplot(atlas[width < 2500,], aes(x = width, y = annotation)) +
+  geom_density_ridges(aes(fill=annotation), stat = "binline",bins=80) +
+  labs(title="Peak lengths by annotation")
+
+# (d) Gene complexity plot: number of peaks / gene
+
+# Count peaks / gene
+gene_count = atlas[!is.na(SYMBOL), .N, by = SYMBOL]
+setnames(gene_count, "N", "count")
+gene_lengths = unique(atlas[!is.na(SYMBOL), geneLength, by = SYMBOL])
+setkey(gene_count, SYMBOL)
+setkey(gene_lengths, SYMBOL)
+gene_length_dt = gene_lengths[gene_count]
+
+gcp = ggplot(gene_length_dt, aes(x=geneLength, y=count)) +
+  geom_point(aes(alpha=1/40)) + guides(alpha=FALSE) +
+  geom_density2d() + 
+  scale_x_log10() + 
+  geom_text_repel(
+    data = gene_length_dt[count > 35,],
+    aes(label = SYMBOL),
+    size = 3,
+    box.padding = unit(0.35, "lines"),
+    point.padding = unit(0.3, "lines")
+  ) + 
+  ggtitle("Peaks per gene") + 
+  xlab("Gene length (log10 bp)") + 
+  ylab("Number of peaks")
+
+
+pdf(file = "atlas_diagnostic_plots_refseq.pdf", width = 15, height = 13)
+
+# compile plots into a list
+pltList <- list()
+pltList[[1]] <- pba
+pltList[[2]] <- plc
+pltList[[3]] <- fgpl
+pltList[[4]] <- gcp
+
+# display the plots in a grid
+grid.arrange(grobs=pltList, ncol=2)
+dev.off()
+
+
+# plot pie chart of atlas, differentiable peaks atlas
+total = atlas[,.N]
+grouped_peaks = atlas[,.N, by=annotation]
+grouped_peaks[, annotation := as.factor(annotation)]
+grouped_peaks[, percent := N / total]
+grouped_peaks = grouped_peaks[order(c(1,3,2,4,5,6))]
+grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 # pie chart of atlas
-atlas_pie = ggplot(atlas_dt, aes(x=factor(1), fill=annotation)) + 
-  geom_bar(width=1) + 
-  coord_polar(theta = "y") +
+atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
+  geom_bar(stat = "identity") + 
+  guides(fill=guide_legend(override.aes=list(colour=NA))) +
+  geom_label_repel(aes(label = percent(percent), y = pie_label)) +
   theme(axis.text=element_blank(),
-        axis.ticks=element_blank(),
+        axis.ticks.x=element_blank(),
         axis.line=element_blank(),
         axis.title=element_blank()) +
   ggtitle("All peaks in atlas (by annotation)") + 
-  geom_text_repel(data=grouped_peaks, aes(x=factor(1), y=pos, label=percent(percentage)), vjust= 1.5, size=6)
+  coord_polar(theta = "y")
 
-# pie chart of diff'ble peaks
-diff_peaks = read.delim(file="P_A_SA_SAR_diff_peaks.bed", sep="\t")
-colnames(diff_peaks) = c("chrom", "start", "end")
-diff_peaks_dt = data.table(diff_peaks)
-key_cols = c("chrom", "start", "end")
-setkeyv(diff_peaks_dt, key_cols)
-setkeyv(atlas_dt, key_cols)
-annotated_diff_peaks = atlas_dt[diff_peaks_dt,]
 
-# pie chart of differential peak atlas
-total = annotated_diff_peaks[,.N]
-grouped_diff_peaks = annotated_diff_peaks[,.N, by=annotation]
-grouped_diff_peaks[, pos := cumsum(N) - N / 4 ]
-# swap percentage labels for intron, intergenic.  Pie chart displays them incorrectly.
-grouped_diff_peaks[, percentage := N / total]
-temp_intron = grouped_diff_peaks[annotation == "intron", percentage]
-temp_intergenic = grouped_diff_peaks[annotation == "intergenic", percentage]
-grouped_diff_peaks[annotation == "intron", percentage := temp_intergenic]
-grouped_diff_peaks[annotation == "intergenic", percentage := temp_intron]
+# pie chart of diff'ble peaks: SAR vs P
+diff_peaks_anno <- annotatePeak("SAR_vs_P_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
+rm(diff_peaks_anno)
+setnames(diff_peaks_dt, "seqnames", "chrom")
+diff_peaks_dt[grepl("Exon",annotation), simple_annotation := "Exon"]
+diff_peaks_dt[grepl("Intron",annotation), simple_annotation := "Intron"]
+diff_peaks_dt[grepl("Promoter",annotation), simple_annotation := "Promoter"]
+diff_peaks_dt[grepl("Intergenic",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("Downstream",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("5' UTR",annotation), simple_annotation := "5' UTR"]
+diff_peaks_dt[grepl("3' UTR",annotation), simple_annotation := "3' UTR"]
+setnames(diff_peaks_dt, c("annotation", "simple_annotation"), c("complex_annotation", "annotation"))
 
-diff_pie = ggplot(annotated_diff_peaks, aes(x=factor(1), fill=annotation)) + 
-  geom_bar(width=1) + 
-  coord_polar(theta = "y") +
+total = diff_peaks_dt[,.N]
+grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
+grouped_peaks[, annotation := as.factor(annotation)]
+grouped_peaks[, percent := N / total]
+grouped_peaks = grouped_peaks[order(c(4,2,3,1,5,6))]
+grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
+
+SAR_vs_P_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
+  geom_bar(stat = "identity") + 
+  guides(fill=guide_legend(override.aes=list(colour=NA))) +
+  geom_label_repel(aes(label = percent(percent), y = pie_label)) +
   theme(axis.text=element_blank(),
-        axis.ticks=element_blank(),
+        axis.ticks.x=element_blank(),
         axis.line=element_blank(),
         axis.title=element_blank()) +
-  ggtitle("Differential peaks along P-A-SA-SAR (by annotation)") + 
-  geom_text_repel(data=grouped_diff_peaks, aes(x=factor(1), y=pos, label=percent(percentage)), size=6)
+  ggtitle("All peaks in atlas (by annotation)") + 
+  coord_polar(theta = "y")
+
+# pie cahrt of diff'ble peaks: P -> A -> SA -> ...
+diff_peaks_anno <- annotatePeak("P_A_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
+rm(diff_peaks_anno)
+setnames(diff_peaks_dt, "seqnames", "chrom")
+diff_peaks_dt[grepl("Exon",annotation), simple_annotation := "Exon"]
+diff_peaks_dt[grepl("Intron",annotation), simple_annotation := "Intron"]
+diff_peaks_dt[grepl("Promoter",annotation), simple_annotation := "Promoter"]
+diff_peaks_dt[grepl("Intergenic",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("Downstream",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("5' UTR",annotation), simple_annotation := "5' UTR"]
+diff_peaks_dt[grepl("3' UTR",annotation), simple_annotation := "3' UTR"]
+setnames(diff_peaks_dt, c("annotation", "simple_annotation"), c("complex_annotation", "annotation"))
+
+total = diff_peaks_dt[,.N]
+grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
+grouped_peaks[, annotation := as.factor(annotation)]
+grouped_peaks[, percent := N / total]
+grouped_peaks = grouped_peaks[order(c(1,5,4,3,6,2))]
+grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
+
+P_A_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
+  geom_bar(stat = "identity") + 
+  guides(fill=guide_legend(override.aes=list(colour=NA))) +
+  geom_label_repel(aes(label = percent(percent), y = pie_label)) +
+  theme(axis.text=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.line=element_blank(),
+        axis.title=element_blank()) +
+  ggtitle("All peaks in atlas (by annotation)") + 
+  coord_polar(theta = "y")
 
 
-# Load the DESeq objects used to make differential plots
+# pie chart of diff'ble peaks: P -> S -> SA -> ...
+diff_peaks_anno <- annotatePeak("P_S_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
+rm(diff_peaks_anno)
+setnames(diff_peaks_dt, "seqnames", "chrom")
+diff_peaks_dt[grepl("Exon",annotation), simple_annotation := "Exon"]
+diff_peaks_dt[grepl("Intron",annotation), simple_annotation := "Intron"]
+diff_peaks_dt[grepl("Promoter",annotation), simple_annotation := "Promoter"]
+diff_peaks_dt[grepl("Intergenic",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("Downstream",annotation), simple_annotation := "Intergenic"]
+diff_peaks_dt[grepl("5' UTR",annotation), simple_annotation := "5' UTR"]
+diff_peaks_dt[grepl("3' UTR",annotation), simple_annotation := "3' UTR"]
+setnames(diff_peaks_dt, c("annotation", "simple_annotation"), c("complex_annotation", "annotation"))
+
+total = diff_peaks_dt[,.N]
+grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
+grouped_peaks[, annotation := as.factor(annotation)]
+grouped_peaks[, percent := N / total]
+grouped_peaks = grouped_peaks[order(c(2,3,1,5,4,6))]
+grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
+
+P_S_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
+  geom_bar(stat = "identity") + 
+  guides(fill=guide_legend(override.aes=list(colour=NA))) +
+  geom_label_repel(aes(label = percent(percent), y = pie_label)) +
+  theme(axis.text=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.line=element_blank(),
+        axis.title=element_blank()) +
+  ggtitle("All peaks in atlas (by annotation)") + 
+  coord_polar(theta = "y")
+
+
+
+### Load the DESeq objects used to make differential plots
 setwd('/Users/zamparol/projects/AML_ATAC/results/DESeq/objects')
 dds_peaks = readRDS("dds_object.rds")
 res_A_P = readRDS("res_A_P.rds")
@@ -161,15 +311,15 @@ A_SA_hist = ggplot(as.data.frame(res_A_SA), aes(x=pvalue)) + geom_histogram(bins
 
 # Load the clustered peaks from plotHeatmap, look at the annotation breakdown, and the genes represented
 annotated_atlas <- read.csv(file="annotated_atlas_reduced.csv")
-atlas_dt = data.table(annotated_atlas)
+atlas = data.table(annotated_atlas)
 diff_peaks = read.delim(file="P-A-SA-SAR_clusters.bed", sep="\t", header=TRUE)
 diff_peaks = diff_peaks[,c("X.chrom", "start","end","deepTools_group")]
 diff_peaks_dt = data.table(diff_peaks)
 setnames(diff_peaks_dt, "X.chrom", "chrom")
-setnames(atlas_dt, "seqnames", "chrom")
-setkeyv(atlas_dt, c("chrom", "start", "end"))
+setnames(atlas, "seqnames", "chrom")
+setkeyv(atlas, c("chrom", "start", "end"))
 setkeyv(diff_peaks_dt, c("chrom", "start", "end"))
-annotated_diff_peaks = atlas_dt[diff_peaks_dt,]
+annotated_diff_peaks = atlas[diff_peaks_dt,]
 
 annotated_diff_peaks[, group_total := .N, by=deepTools_group]
 annotated_diff_peaks[, group_percentage := .N / group_total, by=.(deepTools_group, annot)]
