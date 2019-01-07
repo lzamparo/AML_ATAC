@@ -84,3 +84,14 @@ analyse_cluster = function(cluster){
 }
 
 cluster_enrichmen_results = lapply(cluster_bed_list, analyse_cluster)
+
+# write out the KEGG, GSEA enrichment data.frames to their own files
+write_out_enrichment_dfs <- function(beds, enrichments){
+  kegg_filename = gsub(".bed",".kegg.enrichment.csv", beds$name)
+  gsea_filename = gsub(".bed",".gsea.enrichment.csv", beds$name)
+  
+  write.csv(enrichments$kegg, kegg_filename, row.names = FALSE)
+  write.csv(enrichments$gsea, gsea_filename, row.names = FALSE)
+}
+
+mapply(write_out_enrichment_dfs, cluster_bed_list, cluster_enrichmen_results)
