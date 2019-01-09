@@ -130,7 +130,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(4,2,3,1,5,6))]
+grouped_peaks = grouped_peaks[order(c(3,1,4,2,5,6))]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 SAR_vs_P_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -162,7 +162,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(1,5,4,3,6,2))]
+grouped_peaks = grouped_peaks[order(c(1,4,3,2,5,6))]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 P_A_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -195,7 +195,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(2,3,1,5,4,6))]
+grouped_peaks = grouped_peaks[order(c(3,1,2,4,5,6))]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 P_S_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -221,6 +221,10 @@ res_S_P = readRDS("res_S_P.rds")
 res_SA_S = readRDS("res_SA_S.rds")
 res_SARF_SAR = readRDS("res_SARF_SAR.rds")
 res_SARN_SAR = readRDS("res_SARN_SAR.rds")
+res_SA_P = readRDS("res_SA_P.rds")
+res_SAR_P = readRDS("res_SAR_P.rds")
+res_SARF_P = readRDS("res_SARF_P.rds")
+res_SARN_P = readRDS("res_SARN_P.rds")
 
 res_A_P_dt = as.data.table(res_A_P)
 res_S_P_dt = as.data.table(res_S_P)
@@ -229,6 +233,11 @@ res_SA_S_dt = as.data.table(res_SA_S)
 res_SAR_SA_dt = as.data.table(res_SAR_SA)
 res_SARN_SAR_dt = as.data.table(res_SARN_SAR)
 res_SARF_SAR_dt = as.data.table(res_SARF_SAR)
+res_SA_P_dt = as.data.table(res_SA_P)
+res_SAR_P_dt = as.data.table(res_SAR_P)
+res_SARF_P_dt = as.data.table(res_SARF_P)
+res_SARN_P_dt = as.data.table(res_SARN_P)
+
 
 ### PCA plot
 # Check that we're getting replicates clustering together
@@ -241,8 +250,7 @@ assay(rld) <- mat_nobatch
 data <- plotPCA(rld, intgroup=c("Condition"), returnData=TRUE)  ### pick ntop based on number of up & down peaks.
 percentVar <- round(100 * attr(data, "percentVar"))
 
-# For ASH: need just P-A-SA-SAR conditions...
-ggplot(subset(data, data$Condition %in% c("WT","ASXL1","SRSF2-ASXL1","SRSF2-ASXL1-NRAS")), aes(PC1, PC2, color=Condition)) +
+ggplot(data, aes(PC1, PC2, color=Condition)) +
   geom_point(size=3) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
@@ -256,19 +264,19 @@ ggplot(subset(data, data$Condition %in% c("WT","ASXL1","SRSF2-ASXL1","SRSF2-ASXL
 
 
 # MA plots versus P
-plotMA(res_A_P, main="MA plot for gains, losses in A vs P", ylim=c(-2,2))
-plotMA(res_S_P, main="MA plot for gains, losses in S vs P", ylim=c(-2,2))
-plotMA(res_SA_P, main="MA plot for gains, losses in SA vs P", ylim=c(-2,2))
-plotMA(res_SAR_P, main="MA plot for gains, losses in SAR vs P", ylim=c(-2,2))
-plotMA(res_SARF_P, main="MA plot for gains, losses in SARF vs P", ylim=c(-2,2))
-plotMA(res_SARN_P, main="MA plot for gains, losses in SARN vs P", ylim=c(-2,2))
+DESeq2::plotMA(res_A_P, main="MA plot for gains, losses in A vs P", ylim=c(-5,5))
+DESeq2::plotMA(res_S_P, main="MA plot for gains, losses in S vs P", ylim=c(-5,5))
+DESeq2::plotMA(res_SA_P, main="MA plot for gains, losses in SA vs P", ylim=c(-5,5))
+DESeq2::plotMA(res_SAR_P, main="MA plot for gains, losses in SAR vs P", ylim=c(-5,5))
+DESeq2::plotMA(res_SARF_P, main="MA plot for gains, losses in SARF vs P", ylim=c(-5,5))
+DESeq2::plotMA(res_SARN_P, main="MA plot for gains, losses in SARN vs P", ylim=c(-5,5))
 
 # Remaining MA plots in (P -> A / S -> SA -> SAR -> SARN / SARF)
-plotMA(res_SA_S, main="MA plot for gains, losses in SA vs S", ylim=c(-2,2))
-plotMA(res_SA_A, main="MA plot for gains, losses in SA vs A", ylim=c(-2,2))
-plotMA(res_SAR_SA, main="MA plot for gains, losses in SAR vs SA", ylim=c(-2,2))
-plotMA(res_SARN_SAR, main="MA plot for gains, losses in SARN vs SAR", ylim=c(-2,2))
-plotMA(res_SARF_SAR, main="MA plot for gains, losses in SARF vs SAR", ylim=c(-2,2))
+DESeq2::plotMA(res_SA_S, main="MA plot for gains, losses in SA vs S", ylim=c(-5,5))
+DESeq2::plotMA(res_SA_A, main="MA plot for gains, losses in SA vs A", ylim=c(-5,5))
+DESeq2::plotMA(res_SAR_SA, main="MA plot for gains, losses in SAR vs SA", ylim=c(-5,5))
+DESeq2::plotMA(res_SARN_SAR, main="MA plot for gains, losses in SARN vs SAR", ylim=c(-5,5))
+DESeq2::plotMA(res_SARF_SAR, main="MA plot for gains, losses in SARF vs SAR", ylim=c(-5,5))
 
 # Bar chart of opening / closing peaks in each transition 
 # (P -> A -> SA -> SAR-> SARN / SARF)
