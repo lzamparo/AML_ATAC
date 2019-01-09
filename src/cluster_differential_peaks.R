@@ -84,13 +84,13 @@ hc_SAR_P_spearman <- hclust(spearman_dist_SAR_P, method="ward.D")
 hc_A_first_spearman <- hclust(spearman_dist_A_first, method="ward.D")
 hc_S_first_spearman <- hclust(spearman_dist_S_first, method="ward.D")
 
-plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 7 
-plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 6
-plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 6
+plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 7 / h = 75
+plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 8 / h = 30
+plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 8 / h = 65
 
-SAR_P_spearman_clusters <- cutree(hc_SAR_P_spearman, k = 7)
-A_first_spearman_clusters <- cutree(hc_A_first_spearman, k = 7)
-S_first_spearman_clusters <- cutree(hc_S_first_spearman, k = 7)
+SAR_P_spearman_clusters <- cutree(hc_SAR_P_spearman, h = 75)
+A_first_spearman_clusters <- cutree(hc_A_first_spearman, h = 30)
+S_first_spearman_clusters <- cutree(hc_S_first_spearman, h = 65)
 
 rm(list = c("spearman_SAR_P", "spearman_S_first", "spearman_A_first", "spearman_dist_SAR_P", "spearman_dist_S_first", "spearman_dist_A_first"))
 gc()
@@ -131,8 +131,8 @@ write_section  = function(DF, prefix) {
 
 setwd("../../results/peaks/tornado_cluster_bedfiles/SAR_vs_P")
 SAR_vs_P_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,SAR_vs_P_prefix))
-setwd("../A_first")
+setwd("../P_A_SA_SAR_SARN_SARF")
 P_A_SA_SAR_SARN_SARF_diff_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,A_prefix))
-setwd("../S_first")
+setwd("../P_S_SA_SAR_SARN_SARF")
 P_S_SA_SAR_SARN_SARF_diff_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,S_prefix))
 
