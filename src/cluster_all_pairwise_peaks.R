@@ -52,7 +52,7 @@ rownames(col_data) <- rownames
 colnames(count_matrix) <- rownames
 
 # load the peak subsets to cluster
-all_pairwise_peaks_bed = read.table("../../results/peaks/all_pairwise_comparisons_diff_peaks.bed", sep="\t")
+all_pairwise_peaks_bed = read.table("/data/leslie/zamparol/AML_ATAC/data/results/differential_peak_lists/all_pairwise_comparisons_diff_peaks.bed", sep="\t")
 colnames(all_pairwise_peaks_bed) = c("chrom", "start", "end")
 all_pairwise_diff_peaks = paste(all_pairwise_peaks_bed$chrom, all_pairwise_peaks_bed$start, all_pairwise_peaks_bed$end, sep="-")
 all_pairwise_diff_matrix = count_matrix[all_pairwise_diff_peaks,]
