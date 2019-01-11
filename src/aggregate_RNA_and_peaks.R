@@ -69,36 +69,73 @@ SAR_vs_SA_plot_data = merge(SAR_vs_SA_MD_expression_dt, SAR_vs_SA_MD_accessabili
 ## going to have to do my own: geom_point, calculate my own y-axis value for each point by arb. adding to start-point
 A_vs_P_plot_data[direction == "opening", yval := log2FoldChange + 1:.N, by = Gene]
 A_vs_P_plot_data[direction == "closing", yval := log2FoldChange - 1:.N, by = Gene]
+A_vs_P_plot_data[, top_yval := log2FoldChange + 1:.N, by = Gene]
 
 SA_vs_A_plot_data[direction == "opening", yval := log2FoldChange + 1:.N, by = Gene]
 SA_vs_A_plot_data[direction == "closing", yval := log2FoldChange - 1:.N, by = Gene]
+SA_vs_A_plot_data[, top_yval := log2FoldChange + 1:.N, by = Gene]
 
 SAR_vs_SA_plot_data[direction == "opening", yval := log2FoldChange + 1:.N, by = Gene]
 SAR_vs_SA_plot_data[direction == "closing", yval := log2FoldChange - 1:.N, by = Gene]
+SAR_vs_SA_plot_data[, top_yval := log2FoldChange + 1:.N, by = Gene]
 
-diamond_A_vs_P = ggplot(data = A_vs_P_plot_data, aes(x=reorder(Gene,log2FoldChange),y=yval,shape=annotation, fill=change, color=direction)) + 
-  geom_point() + 
+diamond_A_vs_P = ggplot(data = A_vs_P_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(A_vs_P_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene,log2FoldChange), y=log2FoldChange, group=1), size=0.5, linetype='dotted') + 
+  geom_point(aes(y=yval,shape=annotation, fill=change, color=direction)) + 
   ggtitle("A versus P: top 20 up-regulated & 20 down-regulated genes") + 
-  guides(colour="none", direction="none", fill="none") +
+  guides(direction="none", fill="none", size="none") +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
   xlab("Gene (symbol)") + 
   ylab(TeX("$\\log_{2}(FC)$")) + 
   ylim(c(-15,15))
 
-diamond_SA_vs_A = ggplot(data = SA_vs_A_plot_data, aes(x=reorder(Gene,log2FoldChange),y=yval,shape=annotation, fill=change, color=direction)) + 
-  geom_point() + 
+# Apparently the 'diamond' plots only have peak symbols on top of gene info
+diamond_A_vs_P_top = ggplot(data = A_vs_P_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(A_vs_P_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene,log2FoldChange), y=log2FoldChange, group=1), size=0.5, linetype='dotted') + 
+  geom_point(aes(y=top_yval, shape=annotation, color=direction)) + 
+  ggtitle("A versus P: top 20 up-regulated & 20 down-regulated genes") + 
+  guides(direction="none", fill="none", size="none") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
+  xlab("Gene (symbol)") + 
+  ylab(TeX("$\\log_{2}(FC)$")) + 
+  ylim(c(-10,20))
+
+diamond_SA_vs_A = ggplot(data = SA_vs_A_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(SA_vs_A_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene,log2FoldChange), y=log2FoldChange, group=1), size = 0.5, linetype='dotted') + 
+  geom_point(aes(y=yval,shape=annotation, fill=change, color=direction)) +
   ggtitle("SA versus A: top 20 up-regulated & 20 down-regulated genes") + 
-  guides(colour="none", direction="none", fill="none") +
+  guides(fill="none", direction="none", size="none") +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
   xlab("Gene (symbol)") + 
   ylab(TeX("$\\log_{2}(FC)$")) + 
   ylim(c(-15,15))
 
-diamond_SAR_vs_SA = ggplot(data = SAR_vs_SA_plot_data, aes(x=reorder(Gene,log2FoldChange),y=yval,shape=annotation, fill=change, color=direction)) + 
-  geom_point() + 
+diamond_SA_vs_A_top =  ggplot(data = SA_vs_A_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(SA_vs_A_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene,log2FoldChange), y=log2FoldChange, group=1), size = 0.5, linetype='dotted') + 
+  geom_point(aes(y=top_yval,shape=annotation, fill=change, color=direction)) +
+  ggtitle("SA versus A: top 20 up-regulated & 20 down-regulated genes") + 
+  guides(fill="none", direction="none", size="none") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
+  xlab("Gene (symbol)") + 
+  ylab(TeX("$\\log_{2}(FC)$")) + 
+  ylim(c(-10,20))
+
+diamond_SAR_vs_SA = ggplot(data = SAR_vs_SA_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(SAR_vs_SA_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene, log2FoldChange), y=log2FoldChange, group=1), size = 0.5, linetype='dotted') +
+  geom_point(aes(y=yval,shape=annotation, fill=change, color=direction)) + 
   ggtitle("SAR versus SA: top 20 up-regulated & 20 down-regulated genes") + 
-  guides(colour="none", direction="none", fill="none") +
+  guides(size="none", direction="none", fill="none") +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
   xlab("Gene (symbol)") + 
   ylab(TeX("$\\log_{2}(FC)$")) + 
   ylim(c(-15,15))
+
+diamont_SAR_vs_SA_top = ggplot(data = SAR_vs_SA_plot_data, aes(x=reorder(Gene,log2FoldChange))) + 
+  geom_line(data = unique(SAR_vs_SA_plot_data[,.(Gene, log2FoldChange)]), aes(x=reorder(Gene, log2FoldChange), y=log2FoldChange, group=1), size = 0.5, linetype='dotted') +
+  geom_point(aes(y=top_yval,shape=annotation, fill=change, color=direction)) + 
+  ggtitle("SAR versus SA: top 20 up-regulated & 20 down-regulated genes") + 
+  guides(size="none", direction="none", fill="none") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
+  xlab("Gene (symbol)") + 
+  ylab(TeX("$\\log_{2}(FC)$")) + 
+  ylim(c(-10,20))

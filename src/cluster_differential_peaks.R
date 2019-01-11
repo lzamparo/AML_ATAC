@@ -67,6 +67,11 @@ colnames(P_S_SA_SAR_SARN_SARF_diff_peaks_bed) = c("chrom","start", "end")
 P_S_SA_SAR_SARN_SARF_diff_peaks = paste(P_S_SA_SAR_SARN_SARF_diff_peaks_bed$chrom,P_S_SA_SAR_SARN_SARF_diff_peaks_bed$start,P_S_SA_SAR_SARN_SARF_diff_peaks_bed$end,sep="-")
 P_S_SA_SAR_SARN_SARF_diff_matrix = count_matrix[P_S_SA_SAR_SARN_SARF_diff_peaks,]
 
+all_pairwise_peaks_bed = read.table("../../results/peaks/all_pairwise_comparisons_diff_peaks.bed", sep="\t")
+colnames(all_pairwise_peaks_bed) = c("chrom", "start", "end")
+all_pairwise_diff_peaks = paste(all_pairwise_peaks_bed$chrom, all_pairwise_peaks_bed$start, all_pairwise_peaks_bed$end, sep="-")
+all_pairwise_diff_matrix = count_matrix[all_pairwise_diff_peaks,]
+
 ### calculate the distance objects, cluster, cut into distinct groups
 
 # first, try 1 - spearman correlation as distance
@@ -80,9 +85,13 @@ spearman_dist_A_first <- as.dist(1-spearman_A_first)
 spearman_S_first <- cor(t(P_S_SA_SAR_SARN_SARF_diff_matrix), method="spearman")
 spearman_dist_S_first <- as.dist(1-spearman_S_first)
 
+spearman_all <- cor(t(all_pairwise_diff_matrix), method="spearman")
+spearman_dist_all <- as.dist(1-spearman_all)
+
 hc_SAR_P_spearman <- hclust(spearman_dist_SAR_P, method="ward.D")
 hc_A_first_spearman <- hclust(spearman_dist_A_first, method="ward.D")
 hc_S_first_spearman <- hclust(spearman_dist_S_first, method="ward.D")
+hc_all_spearman <- hclust(spearman_dist_all, method="ward.D")
 
 plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 7 / h = 75
 plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 8 / h = 30
