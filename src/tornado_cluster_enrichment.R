@@ -1,6 +1,4 @@
 require(data.table)
-require(gage)
-require(gageData)
 require(stringr)
 require(clusterProfiler)
 require(DESeq2)
@@ -49,6 +47,20 @@ setkey(most_peaks_dt, ENSEMBL)
 entrez_named_peaks = merge(most_peaks_dt, eIDs_dt, all.x=TRUE)
 setkeyv(entrez_named_peaks, c("chrom", "start", "end"))
 
+write_out_named_clusters = function(cluster){
+  # get the peaks for this cluster
+  dt = cluster$dt
+  setkeyv(dt, c("chrom", "end"))
+  cluster_named_peaks = atlas_dt[dt]
+  
+  named_cluster_filename = gsub(".bed",".named.cluster.csv", cluster$name)
+  write.table(cluster_named_peaks$SYMBOL, named_cluster_filename, quote=FALSE, row.names = FALSE, col.names=FALSE)
+}
+
+### the bed files in the clusters is off by 1!!! why on earth off by one ?????
+setkeyv(atlas_dt, c("chrom", "end"))
+cluster_enrichment_results = lapply(cluster_bed_list, write_out_named_clusters)
+
 analyse_cluster = function(cluster){
   # get the peaks for this cluster
   dt = cluster$dt
@@ -83,7 +95,7 @@ analyse_cluster = function(cluster){
   return(list(kegg=as.data.frame(cluster_kegg), gsea=as.data.frame(cluster_gsea)))
 }
 
-cluster_enrichmen_results = lapply(cluster_bed_list, analyse_cluster)
+cluster_enrichment_results = lapply(cluster_bed_list, analyse_cluster)
 
 # write out the KEGG, GSEA enrichment data.frames to their own files
 write_out_enrichment_dfs <- function(beds, enrichments){
@@ -94,4 +106,4 @@ write_out_enrichment_dfs <- function(beds, enrichments){
   write.csv(enrichments$gsea, gsea_filename, row.names = FALSE)
 }
 
-mapply(write_out_enrichment_dfs, cluster_bed_list, cluster_enrichmen_results)
+mapply(write_out_enrichment_dfs, cluster_bed_list, cluster_enrichment_results)

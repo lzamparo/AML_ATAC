@@ -1,6 +1,6 @@
 require(stats)
 require(data.table)
-require(tidyverse)
+require(plyr)
 require(readxl)
 
 ### Read in a matrix of counts from the raw data.  Take the subsets we want to cluster (stage-wise differenes, and SAR vs P differential peaks)
@@ -85,21 +85,28 @@ spearman_dist_A_first <- as.dist(1-spearman_A_first)
 spearman_S_first <- cor(t(P_S_SA_SAR_SARN_SARF_diff_matrix), method="spearman")
 spearman_dist_S_first <- as.dist(1-spearman_S_first)
 
-spearman_all <- cor(t(all_pairwise_diff_matrix), method="spearman")
-spearman_dist_all <- as.dist(1-spearman_all)
 
 hc_SAR_P_spearman <- hclust(spearman_dist_SAR_P, method="ward.D")
 hc_A_first_spearman <- hclust(spearman_dist_A_first, method="ward.D")
 hc_S_first_spearman <- hclust(spearman_dist_S_first, method="ward.D")
-hc_all_spearman <- hclust(spearman_dist_all, method="ward.D")
+hc_all_spearman <- readRDS("~/projects/AML_ATAC/results/peaks/tornado_cluster_bedfiles/all_diff_peaks/hc_all_spearman.rds")
 
 plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 7 / h = 75
 plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 8 / h = 30
 plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 8 / h = 65
 
+# This dendrogram is denser.  Need to zoom in on each branch to take a look
+# not run: blows up my R session on a laptop.  But on a bigger machine,
+# I could examine the region below height == 500, determine a better clustering
+# hc_all_spearman_trunc_1k <- cut(as.dendrogram(hc_all_spearman),h=500)
+# plot(hc_all_spearman_trunc_1k$lower[[1]], xaxt='n')
+
+plot(hc_all_spearman_trunc_1k, labels=FALSE) # looks like k \in [9, 10, 11]
+
 SAR_P_spearman_clusters <- cutree(hc_SAR_P_spearman, h = 75)
 A_first_spearman_clusters <- cutree(hc_A_first_spearman, h = 30)
 S_first_spearman_clusters <- cutree(hc_S_first_spearman, h = 65)
+all_spearman_clusters <- cutree(hc_all_spearman, k = 9)
 
 rm(list = c("spearman_SAR_P", "spearman_S_first", "spearman_A_first", "spearman_dist_SAR_P", "spearman_dist_S_first", "spearman_dist_A_first"))
 gc()
@@ -127,21 +134,26 @@ S_first_canberra_clusters <- cutree(hc_S_first_canberra, k = 7)
 SAR_vs_P_peaks_bed$cluster_ID <- SAR_P_spearman_clusters
 P_A_SA_SAR_SARN_SARF_diff_peaks_bed$cluster_ID <- A_first_spearman_clusters
 P_S_SA_SAR_SARN_SARF_diff_peaks_bed$cluster_ID <- S_first_spearman_clusters
+all_pairwise_peaks_bed$cluster_ID <- all_spearman_clusters
 
 # write out the SAR_vs_P, A_first, S_first clusters to bedfiles
+# N.B: the peak IDs 
 SAR_vs_P_prefix = "SAR_vs_P_"
 A_prefix = "P_A_SA_SAR_SARN_SARF_"
 S_prefix = "P_S_SA_SAR_SARN_SARF_"
-
+all_prefix = "all_diff_peaks_"
+  
 write_section  = function(DF, prefix) {
   write.table(DF[, c("chrom","start", "end")], paste0(prefix,unique(DF$cluster_ID),".bed"), sep="\t", row.names=FALSE, col.names=FALSE, quote = FALSE)
   return(DF)
 }
 
+require(dplyr)
 setwd("../../results/peaks/tornado_cluster_bedfiles/SAR_vs_P")
 SAR_vs_P_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,SAR_vs_P_prefix))
 setwd("../P_A_SA_SAR_SARN_SARF")
 P_A_SA_SAR_SARN_SARF_diff_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,A_prefix))
 setwd("../P_S_SA_SAR_SARN_SARF")
 P_S_SA_SAR_SARN_SARF_diff_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,S_prefix))
-
+setwd("../all_diff_peaks/")
+all_pairwise_peaks_bed %>% group_by(cluster_ID) %>% do(write_section(.,all_prefix))
