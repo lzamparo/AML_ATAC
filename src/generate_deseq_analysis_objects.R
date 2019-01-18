@@ -68,7 +68,7 @@ if (!all(rownames(reordered_col_data) == colnames(count_matrix))){
 # Set the DDS object
 dds <- DESeqDataSetFromMatrix(countData = count_matrix,
                               colData = reordered_col_data,
-                              design = ~ Batch + Condition + Adapter)
+                              design = ~ Batch + Condition)
 
 # load the flanks dds, transfer the estimates size factors
 #flanks_dds <- readRDS("../../results/flank_dds.rds")
@@ -140,6 +140,11 @@ idx <- res_SARF_SAR$padj < 0.05
 SARF_SAR_diff_peaks <- rownames(res_SARF_SAR)[idx]
 
 setwd('../../results/DESeq')
+
+# write out the SAR vs P diff peaks
+bed_matrix <- str_split_fixed(SAR_P_diff_peaks, "-", 3)
+bed_df <- as.data.frame(bed_matrix)
+write.table(bed_df, "../peaks/SAR_vs_P_diff_peaks.bed", sep="\t", row.names=FALSE, col.names=FALSE, quote=FALSE)
 
 # collect those peaks that are differential among the A-P, SA-P, SAR-P, SARN-P, SARF-P pairwise comparisons
 union_diff_peaks_conditions_vs_P <- unique(do.call(c, list(A_P_diff_peaks, SA_P_diff_peaks,SAR_P_diff_peaks, SARF_P_diff_peaks,SARN_P_diff_peaks)))

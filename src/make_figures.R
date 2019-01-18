@@ -247,6 +247,7 @@ col_data <- read.csv("../../../data/reordered_col_data.csv")
 
 # PCA of conditions where batch effects are removed
 mat <- assay(rld)
+#mat_nobatch <- limma::removeBatchEffect(mat, design=model.matrix(~ col_data$Condition), batch=col_data$Batch)
 mat_nobatch <- limma::removeBatchEffect(mat, design=model.matrix(~ col_data$Condition), batch=col_data$Batch, batch2=col_data$Adapter)
 assay(rld) <- mat_nobatch
 data <- plotPCA(rld, intgroup=c("Condition"), returnData=TRUE)  ### pick ntop based on number of up & down peaks.

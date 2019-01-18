@@ -16,6 +16,7 @@ conditions <- list.files(path = ".", include.dirs = TRUE)
 reps <- list.files(path = ".", recursive=TRUE, pattern = "*trimmed_001_read_counts.bed")
 files <- ldply(strsplit(reps, '/', fixed = TRUE))
 colnames(files) <- c("condition","replicate")
+files$Filename = str_split(files$replicate, "_S[0-9]{1,2}", simplify=TRUE)[,1]
 
 # load data by condition & replicate into a count matrix
 get_counts <- function(myrow){
@@ -45,6 +46,21 @@ col_data <- data.table(translator)
 col_data[,Batch := factor(Batch, levels = c(1,2))] 
 col_data[, Condition := factor(Condition, levels = c("P", "A", "S", "SA", "SAR", "SARF", "SARN"))]
 col_data[, Adapter := factor(c(rep("Good",10),"Bad", rep("Good",10)), levels=c("Good","Bad"))]  # Including adapter data from Tiansu
+
+# set colnames of the count_matrix to same
+# *** ENSURE THAT THE COLNAMES OF THE COUNT MATRIX CORRESPOND WITH THE ORDER IN WHICH THE COLUMNS OF THE MATRIX WERE READ IN: i.e `files` ***
+setkey(col_data, Filename)
+reordered_col_data <- col_data[files$Filename, ]
+rownames <- reordered_col_data[, paste(Condition, Replicate, sep="_")]
+rownames(reordered_col_data) <- rownames
+colnames(count_matrix) <- rownames
+
+# Sanity check
+if (!all(rownames(reordered_col_data) == colnames(count_matrix))){
+  print("Mismatch in count matrix column names, rownames of reordered_col_data")
+  stop()
+}
+
 rownames <- col_data[, paste(Condition, Replicate, sep="_")]
 rownames(col_data) <- rownames
 
@@ -67,11 +83,6 @@ colnames(P_S_SA_SAR_SARN_SARF_diff_peaks_bed) = c("chrom","start", "end")
 P_S_SA_SAR_SARN_SARF_diff_peaks = paste(P_S_SA_SAR_SARN_SARF_diff_peaks_bed$chrom,P_S_SA_SAR_SARN_SARF_diff_peaks_bed$start,P_S_SA_SAR_SARN_SARF_diff_peaks_bed$end,sep="-")
 P_S_SA_SAR_SARN_SARF_diff_matrix = count_matrix[P_S_SA_SAR_SARN_SARF_diff_peaks,]
 
-all_pairwise_peaks_bed = read.table("../../results/peaks/all_pairwise_comparisons_diff_peaks.bed", sep="\t")
-colnames(all_pairwise_peaks_bed) = c("chrom", "start", "end")
-all_pairwise_diff_peaks = paste(all_pairwise_peaks_bed$chrom, all_pairwise_peaks_bed$start, all_pairwise_peaks_bed$end, sep="-")
-all_pairwise_diff_matrix = count_matrix[all_pairwise_diff_peaks,]
-
 ### calculate the distance objects, cluster, cut into distinct groups
 
 # first, try 1 - spearman correlation as distance
@@ -85,15 +96,16 @@ spearman_dist_A_first <- as.dist(1-spearman_A_first)
 spearman_S_first <- cor(t(P_S_SA_SAR_SARN_SARF_diff_matrix), method="spearman")
 spearman_dist_S_first <- as.dist(1-spearman_S_first)
 
-
 hc_SAR_P_spearman <- hclust(spearman_dist_SAR_P, method="ward.D")
 hc_A_first_spearman <- hclust(spearman_dist_A_first, method="ward.D")
 hc_S_first_spearman <- hclust(spearman_dist_S_first, method="ward.D")
+
+# This needs to be done separetely via cluster_all_pairwise.R since it needs more memory than my laptop can handle
 hc_all_spearman <- readRDS("~/projects/AML_ATAC/results/peaks/tornado_cluster_bedfiles/all_diff_peaks/hc_all_spearman.rds")
 
-plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 7 / h = 75
-plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 8 / h = 30
-plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 8 / h = 65
+plot(hc_SAR_P_spearman, labels=FALSE)  # looks like k ~ 6 / h = 75
+plot(hc_A_first_spearman, labels=FALSE) # looks lke k ~ 9 / h = 90
+plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 8 / h = 50
 
 # This dendrogram is denser.  Need to zoom in on each branch to take a look
 # not run: blows up my R session on a laptop.  But on a bigger machine,
@@ -104,33 +116,14 @@ plot(hc_S_first_spearman, labels=FALSE) # looks like k ~ 8 / h = 65
 plot(hc_all_spearman_trunc_1k, labels=FALSE) # looks like k \in [9, 10, 11]
 
 SAR_P_spearman_clusters <- cutree(hc_SAR_P_spearman, h = 75)
-A_first_spearman_clusters <- cutree(hc_A_first_spearman, h = 30)
-S_first_spearman_clusters <- cutree(hc_S_first_spearman, h = 65)
+A_first_spearman_clusters <- cutree(hc_A_first_spearman, h = 90)
+S_first_spearman_clusters <- cutree(hc_S_first_spearman, h = 50)
 all_spearman_clusters <- cutree(hc_all_spearman, k = 9)
 
 rm(list = c("spearman_SAR_P", "spearman_S_first", "spearman_A_first", "spearman_dist_SAR_P", "spearman_dist_S_first", "spearman_dist_A_first"))
 gc()
 
-# try canberra as distance
-canberra_SAR_P <- dist(SAR_P_diff_matrix, method="canberra")
-canberra_A_first <- dist(P_A_SA_SAR_SARN_SARF_diff_matrix, method="canberra")
-canberra_S_first <- dist(P_S_SA_SAR_SARN_SARF_diff_matrix, method="canberra")
-
-hc_SAR_P_canberra <- hclust(canberra_SAR_P, method="ward.D")
-hc_A_first_canberra <- hclust(canberra_A_first, method="ward.D")
-hc_S_first_canberra <- hclust(canberra_S_first, method="ward.D")
-
-plot(as.dendrogram(hc_SAR_P_canberra), labels=FALSE, ylim=c(0,5000))  # looks like k ~ 10 but this is tough to gauge
-plot(as.dendrogram(hc_A_first_canberra), labels=FALSE, ylim=c(0,5000)) # looks like k ~ 7
-plot(as.dendrogram(hc_S_first_canberra), labels=FALSE, ylim=c(0,5000)) # looks like k ~ 7
-
-SAR_P_canberra_clusters <- cutree(hc_SAR_P_canberra, k = 7)
-A_first_canberra_clusters <- cutree(hc_A_first_canberra, k = 7)
-S_first_canberra_clusters <- cutree(hc_S_first_canberra, k = 7)
-
-# apply the cut to the bedfiles.  I don't have a great way to evaluate Spearman vs Canberra
-# right now, but I'll go with spearman on the grounds that it should capture broad changes in ordering
-# without being sensitive to absolute values of the counts
+# partition the bedfiles, write them out
 SAR_vs_P_peaks_bed$cluster_ID <- SAR_P_spearman_clusters
 P_A_SA_SAR_SARN_SARF_diff_peaks_bed$cluster_ID <- A_first_spearman_clusters
 P_S_SA_SAR_SARN_SARF_diff_peaks_bed$cluster_ID <- S_first_spearman_clusters
