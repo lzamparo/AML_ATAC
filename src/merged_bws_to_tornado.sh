@@ -3,7 +3,7 @@
 # run from cpumulticore to complete tornado plots
 
 resultsdir="/data/leslie/zamparol/AML_ATAC/data/results/"
-condition="SAR_vs_P"
+condition="all_diff_peaks"
 bedfilesdir="/data/leslie/zamparol/AML_ATAC/data/tornado_cluster_bedfiles/$condition"
 
 matrix_name=$(echo "$condition"_matrix.gz)
@@ -17,5 +17,5 @@ popd
 echo "Done."
 echo "Plotting heatmap..."
 cd /data/leslie/zamparol/AML_ATAC/data/matrices/$condition
-plotHeatmap -m $matrix_name -o $outfile_png --whatToShow "heatmap and colorbar" --plotTitle "$title" --verbose --refPointLabel "Peak center"
+plotHeatmap -m $matrix_name -o $outfile_png --whatToShow "heatmap and colorbar" --plotTitle "$title" --verbose --refPointLabel "Peak center" --colorMap "Reds" -min 0 -max 100
 echo "Done."
