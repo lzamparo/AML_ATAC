@@ -10,7 +10,7 @@ require(TxDb.Hsapiens.UCSC.hg19.knownGene)
 # load atlas file
 setwd("~/projects/AML_ATAC/results/peaks")
 txdb = TxDb.Hsapiens.UCSC.hg19.knownGene
-atlas_anno <- annotatePeak("all_conditions_peak_atlas.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+atlas_anno <- annotatePeak("all_conditions_peak_atlas.bed", tssRegion=c(-2000,2000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
 atlas = data.table(as.data.frame(atlas_anno))
 rm(atlas_anno)
 setnames(atlas, "seqnames", "chrom")
@@ -61,12 +61,12 @@ setkey(gene_count, SYMBOL)
 setkey(gene_lengths, SYMBOL)
 gene_length_dt = gene_lengths[gene_count]
 
-gcp = ggplot(gene_length_dt, aes(x=geneLength, y=count)) +
+gcp = ggplot(gene_length_dt[count < 100,], aes(x=geneLength, y=count)) +
   geom_point(aes(alpha=1/40)) + guides(alpha=FALSE) +
   geom_density2d() + 
   scale_x_log10() + 
   geom_text_repel(
-    data = gene_length_dt[count > 35,],
+    data = gene_length_dt[count > 35 & count < 100,],
     aes(label = SYMBOL),
     size = 3,
     box.padding = unit(0.35, "lines"),
@@ -76,7 +76,7 @@ gcp = ggplot(gene_length_dt, aes(x=geneLength, y=count)) +
   xlab("Gene length (log10 bp)") + 
   ylab("Number of peaks")
 
-
+setwd("../figures/")
 pdf(file = "atlas_diagnostic_plots_refseq.pdf", width = 15, height = 13)
 
 # compile plots into a list
@@ -113,7 +113,7 @@ atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) +
 
 
 # pie chart of diff'ble peaks: SAR vs P
-diff_peaks_anno <- annotatePeak("SAR_vs_P_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_anno <- annotatePeak("../peaks/SAR_vs_P_diff_peaks.bed", tssRegion=c(-2000,2000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
 diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
 rm(diff_peaks_anno)
 setnames(diff_peaks_dt, "seqnames", "chrom")
@@ -130,7 +130,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(3,1,4,2,5,6))]
+grouped_peaks = grouped_peaks[order(c(4,3,2,1,5,6))]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 SAR_vs_P_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -145,9 +145,10 @@ SAR_vs_P_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)
   coord_polar(theta = "y")
 
 # pie cahrt of diff'ble peaks: P -> A -> SA -> ...
-diff_peaks_anno <- annotatePeak("P_A_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_anno <- annotatePeak("../peaks/P_A_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-2000,2000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
 diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
 rm(diff_peaks_anno)
+
 setnames(diff_peaks_dt, "seqnames", "chrom")
 diff_peaks_dt[grepl("Exon",annotation), simple_annotation := "Exon"]
 diff_peaks_dt[grepl("Intron",annotation), simple_annotation := "Intron"]
@@ -162,7 +163,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(1,4,3,2,5,6))]
+grouped_peaks = grouped_peaks[c(2,3,1,4,5,6)]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 P_A_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -178,7 +179,7 @@ P_A_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)
 
 
 # pie chart of diff'ble peaks: P -> S -> SA -> ...
-diff_peaks_anno <- annotatePeak("P_S_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-1000,1000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
+diff_peaks_anno <- annotatePeak("../peaks/P_S_SA_SAR_SARN_SARF_diff_peaks.bed", tssRegion=c(-2000,2000), TxDb=txdb, level = "gene", annoDb="org.Hs.eg.db")
 diff_peaks_dt = data.table(as.data.frame(diff_peaks_anno))
 rm(diff_peaks_anno)
 setnames(diff_peaks_dt, "seqnames", "chrom")
@@ -195,7 +196,7 @@ total = diff_peaks_dt[,.N]
 grouped_peaks =  diff_peaks_dt[,.N, by=annotation]
 grouped_peaks[, annotation := as.factor(annotation)]
 grouped_peaks[, percent := N / total]
-grouped_peaks = grouped_peaks[order(c(3,1,2,4,5,6))]
+grouped_peaks = grouped_peaks[c(4,5,1,2,3,6)]
 grouped_peaks[, pie_label := cumsum(percent) - percent / 2]
 
 P_S_diff_atlas_pie = ggplot(grouped_peaks, aes(x="", y=percent, fill=annotation)) + 
@@ -242,6 +243,7 @@ res_SARN_P_dt = as.data.table(res_SARN_P)
 ### PCA plot
 # Check that we're getting replicates clustering together
 rld <- rlog(dds_peaks, blind=FALSE)
+col_data <- read.csv("../../../data/reordered_col_data.csv")
 
 # PCA of conditions where batch effects are removed
 mat <- assay(rld)
@@ -255,7 +257,7 @@ ggplot(data, aes(PC1, PC2, color=Condition)) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) +
   ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   coord_fixed() +
-  ggtitle("PCA of log transformed read counts") +
+  ggtitle("PCA of log transformed read counts: with batch correction") +
   geom_text_repel(
     aes(label = name),
     size = 3,

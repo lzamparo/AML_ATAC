@@ -11,15 +11,14 @@ sig_alpha = 0.05
 
 setwd(paste(base_dir, dev_path, sep="/"))
 
-cluster_files = list.files(".")
+cluster_dirs = dir(".", pattern="SAR_vs_P_", no..=TRUE)
 get_cluster = function(filename){
-  df_name = as.vector(str_split_fixed(filename, ".bed", n=1))
-  df = read.delim(file = filename, sep="\t", header=FALSE)
+  df = read.delim(file = paste0(filename, "/", filename,".bed"), sep="\t", header=FALSE)
   colnames(df) = c("chrom", "start", "end")
- return(list(name=df_name[1], dt=data.table(df)))
+ return(list(name=filename, dt=data.table(df)))
 }
 
-cluster_bed_list <- lapply(cluster_files, get_cluster)
+cluster_bed_list <- lapply(cluster_dirs, get_cluster)
 
 # load the atlas
 atlas = read.table("/Users/zamparol/projects/AML_ATAC/results/peaks/all_conditions_peak_atlas_annotated.csv", sep=",", header=TRUE)
