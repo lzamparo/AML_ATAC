@@ -4,6 +4,7 @@ require(ggplot2)
 require(ashr)
 require(cowplot)
 require(gridExtra)
+require(latex2exp)
 
 setwd("~/projects/AML_ATAC/results/DESeq/objects")
 dds_peaks <- readRDS("dds_object.rds")
@@ -19,7 +20,7 @@ idx <- res_A_P$padj < 0.05
 A_P_diff_peaks <- rownames(res_A_P)[idx]
 dt_A = data.table(as.data.frame(res_A_P))
 dt_A[, peaks := rownames(res_A_P)]
-setnames(dt_A, c("log2FoldChange"),c("A_vs_P_log2FoldChange"))
+setnames(dt_A, c("log2FoldChange"), c("A_vs_P_log2FoldChange"))
 
 # get the DA peaks for SA versus A, SA versus P
 res_SA_A <- results(dds_peaks, contrast=c("Condition", "SA", "A"), parallel=TRUE)
@@ -81,7 +82,6 @@ dt_S[SA_vs_P_log2FoldChange < 0 & SA_vs_P_padj < 0.05, SA_vs_P_DA := "closing"]
 
 ### Scatter plots
 
-
 # plot the sig peaks as an un-ordered scatter plot: A vs P -> SA vs P
 scatter_AP_SAP = ggplot(dt_A, aes(x=A_vs_P_log2FoldChange, y=SA_vs_P_log2FoldChange, color=A_vs_P_DA, shape=SA_vs_P_DA)) + 
   geom_point(alpha = 2/10) + 
@@ -138,7 +138,7 @@ scatter_SP_SAS = ggplot(dt_S, aes(x=S_vs_P_log2FoldChange, y=SA_vs_S_log2FoldCha
 
 ### arrange, save the plots
 setwd("~/projects/AML_ATAC/results/figures/")
-pdf(file = "peak_tracking_plots.pdf", width = 15, height = 13)
+pdf(file = "peak_tracking_scatter_plots.pdf", width = 15, height = 13)
 
 # compile plots into a list
 pltList <- list()
@@ -149,4 +149,66 @@ pltList[[4]] <- scatter_SP_SAS
 
 # display the plots in a grid
 grid.arrange(grobs=pltList, ncol=2)
+dev.off()
+
+### line plots tracking individual peaks: 
+# need to transform the data from wide to long format
+AP_diff_subset = dt_A[A_vs_P_DA %in% c("opening", "closing")]
+SP_diff_subset = dt_S[S_vs_P_DA %in% c("opening", "closing")]
+
+dt_A_lines = melt(AP_diff_subset, id.vars = c("peaks"), measure.vars = c("A_vs_P_log2FoldChange", "SA_vs_A_log2FoldChange", "SA_vs_P_log2FoldChange"), variable.name = "condidion_FC", value.name = "log2FC")
+dt_A_lines[, condition := gsub("_log2FoldChange", "", condidion_FC)]
+dt_A_lines[, condition := factor(condition, levels = c("A_vs_P", "SA_vs_A", "SA_vs_P"))]
+# add in change info for DA status
+setkey(dt_A_lines, peaks)
+DA_A = dt_A[,.(peaks, A_vs_P_DA, SA_vs_A_DA, SA_vs_P_DA)]
+setkey(DA_A, peaks)
+dt_A_lines = DA_A[dt_A_lines]
+
+dt_S_lines = melt(SP_diff_subset, id.vars = c("peaks"), measure.vars = c("S_vs_P_log2FoldChange", "SA_vs_S_log2FoldChange", "SA_vs_P_log2FoldChange"), variable.name = "condidion_FC", value.name = "log2FC")
+dt_S_lines[, condition := gsub("_log2FoldChange", "", condidion_FC)]
+dt_S_lines[, condition := factor(condition, levels = c("S_vs_P", "SA_vs_S", "SA_vs_P"))]
+# add in change info for DA status
+setkey(dt_S_lines, peaks)
+DA_S = dt_S[,.(peaks, S_vs_P_DA, SA_vs_S_DA, SA_vs_P_DA)]
+setkey(DA_S, peaks)
+dt_S_lines = DA_S[dt_S_lines]
+
+# include peak annotation, facet by annotation
+atlas = data.table(read.csv(file = "~/projects/AML_ATAC/results/peaks/all_conditions_peak_atlas_annotated.csv"))
+# subtract one from start: bizarre off-by-one strikes again.  Damn you R.
+atlas[, start := start - 1]
+atlas[, peaks := paste(chrom, start, end, sep="-")]
+atlas = atlas[,.(peaks, annotation)]
+setkey(dt_A_lines, peaks)
+setkey(dt_S_lines, peaks)
+setkey(atlas, peaks)
+dt_A_annotated = atlas[dt_A_lines]
+dt_S_annotated = atlas[dt_S_lines]
+
+# memory problems: dump everything save dt_A_annotated
+rm(list=setdiff(ls(), c("dt_A_annotated","dt_S_annotated")))
+gc()
+
+# Facet by peak annotation
+pdf(file = "peak_tracking_line_plots_A.pdf", width = 12, height = 8)
+ggplot(dt_A_annotated, aes(x=condition, y=log2FC)) + 
+  geom_point(aes(colour=A_vs_P_DA)) + 
+  geom_line(inherit.aes=FALSE, aes(x=condition, y=log2FC, group = peaks), alpha=0.1, size=0.15, linetype="dashed") +
+  ggtitle("Changes in A vs P differential peaks across conditions") + 
+  xlab("Condition") + 
+  ylab(TeX("$\\log_{2}(FC)$")) + 
+  scale_colour_manual(name="A vs P peaks", values=c("closing"="blue", "opening"="red")) + 
+  facet_wrap( ~ annotation, ncol = 3)
+dev.off()
+
+pdf(file = "peak_tracking_line_plots_S.pdf", width = 12, height = 8)
+ggplot(dt_S_annotated, aes(x=condition, y=log2FC)) + 
+  geom_point(aes(colour=S_vs_P_DA)) + 
+  geom_line(inherit.aes=FALSE, aes(x=condition, y=log2FC, group = peaks), alpha=0.1, size=0.15, linetype="dashed") +
+  ggtitle("Changes in S vs P differential peaks across conditions") + 
+  xlab("Condition") + 
+  ylab(TeX("$\\log_{2}(FC)$")) + 
+  scale_colour_manual(name="A vs P peaks", values=c("closing"="blue", "opening"="red")) + 
+  facet_wrap( ~ annotation, ncol = 3)
 dev.off()
