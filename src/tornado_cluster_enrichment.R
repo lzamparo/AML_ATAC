@@ -13,7 +13,7 @@ setwd(paste(base_dir, dev_path, sep="/"))
 
 cluster_dirs = dir(".", pattern="SAR_vs_P_", no..=TRUE)
 get_cluster = function(filename){
-  df = read.delim(file = paste0(filename, "/", filename,".bed"), sep="\t", header=FALSE)
+  df = read.delim(file = paste0(filename), sep="\t", header=FALSE)
   colnames(df) = c("chrom", "start", "end")
  return(list(name=filename, dt=data.table(df)))
 }
@@ -87,7 +87,7 @@ analyse_cluster = function(cluster){
                 ont = "BP",
                 nPerm = 1000,
                 keyType = "ENTREZID",
-                minGSSize = 100,
+                minGSSize = 10,
                 maxGSSize = 500,
                 pvalueCutoff = 0.2,
                 verbose = FALSE)

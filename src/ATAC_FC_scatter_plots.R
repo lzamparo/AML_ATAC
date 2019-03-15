@@ -81,6 +81,23 @@ dt_S[SA_vs_P_log2FoldChange < 0 & SA_vs_P_padj < 0.05, SA_vs_P_DA := "closing"]
 
 
 ### Scatter plots
+# plot the sig peaks as an un-ordered scatter plot: A vs P -> S vs P
+setkey(dt_A, peaks)
+setkey(dt_S, peaks)
+setnames(dt_A, "baseMean", "A_vs_P_baseMean")
+dt_AS <- dt_A[dt_S]
+
+scatter_AP_SP = ggplot(dt_AS, aes(x=A_vs_P_log2FoldChange, y=S_vs_P_log2FoldChange, color=A_vs_P_DA, shape=S_vs_P_DA)) + 
+  geom_point(alpha = 2/10) + 
+  geom_vline(xintercept=1, linetype=3, alpha=2/10) + 
+  geom_vline(xintercept=-1, linetype=3, alpha=2/10) + 
+  geom_hline(yintercept=1, linetype=3, alpha=2/10) + 
+  geom_hline(yintercept=-1, linetype=3, alpha=2/10) + 
+  scale_color_manual(name = "Status in A versus P", values = c("opening" = "red", "unchanged" = "gray", "closing" = "blue")) + 
+  scale_shape_manual(name = "Status in S versus P", values = c("opening" = "triangle", "unchanged" = "square", "closing" = "circle")) + 
+  ggtitle("Log2FC of (A vs P) against (S vs P)") + 
+  xlab("A vs P LFC") + 
+  ylab("S vs P LFC")
 
 # plot the sig peaks as an un-ordered scatter plot: A vs P -> SA vs P
 scatter_AP_SAP = ggplot(dt_A, aes(x=A_vs_P_log2FoldChange, y=SA_vs_P_log2FoldChange, color=A_vs_P_DA, shape=SA_vs_P_DA)) + 

@@ -22,6 +22,10 @@ files <- ldply(strsplit(reps, '/', fixed = TRUE))
 colnames(files) <- c("condition","replicate")
 files$Filename = str_split(files$replicate, "_S[0-9]{1,2}", simplify=TRUE)[,1]
 
+# Drop S3; it does not contain the SRSF2 mutation :/
+files = data.table(files)
+files = files[Filename != "SRSF2_c1_8",]
+
 # load data by condition & replicate into a count matrix
 get_counts <- function(myrow){
   my_rep <- read.delim(file = paste(myrow[1], myrow[2], sep = "/"), header = FALSE)
@@ -45,11 +49,15 @@ rownames(count_matrix) <- peaks
 # prepare the col_data object 
 translator <- read_excel("~/projects/AML_ATAC/data/filename_to_sample.xlsx")
 col_data <- data.table(translator)
+
  
 # ensure the batch is taken as a factor
 col_data[, Batch := factor(Batch, levels = c(1,2))] 
 col_data[, Condition := factor(Condition, levels = c("P", "A", "S", "SA", "SAR", "SARF", "SARN"))]
 col_data[, Adapter := factor(c(rep("Good",10),"Bad", rep("Good",10)), levels=c("Good","Bad"))]  # Including adapter data from Tiansu
+
+# drop S3 
+col_data = col_data[Filename != "SRSF2_c1_8",]
 
 # set colnames of the count_matrix to same
 # *** ENSURE THAT THE COLNAMES OF THE COUNT MATRIX CORRESPOND WITH THE ORDER IN WHICH THE COLUMNS OF THE MATRIX WERE READ IN: i.e `files` ***

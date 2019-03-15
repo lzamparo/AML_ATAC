@@ -5,7 +5,7 @@ require(ggrepel)
 require(cowplot)
 require(ChIPseeker)
 require(TxDb.Hsapiens.UCSC.hg19.knownGene)
-
+require(readxl)
 
 # load atlas file
 setwd("~/projects/AML_ATAC/results/peaks")
@@ -243,7 +243,8 @@ res_SARN_P_dt = as.data.table(res_SARN_P)
 ### PCA plot
 # Check that we're getting replicates clustering together
 rld <- rlog(dds_peaks, blind=FALSE)
-col_data <- read.csv("../../../data/reordered_col_data.csv")
+col_data = as.data.table(read_excel("../../../data/filename_to_sample.xlsx"))
+col_data = col_data[Filename != "SRSF2_c1_8",]
 
 # PCA of conditions where batch effects are removed
 mat <- assay(rld)

@@ -5,7 +5,7 @@ Meeting Jan 15th
 Tornado plot changes:
 	[done] finer scale for tornados (10bp bins)
 	[done] cap scale for tonado plots (re-scale so we see 0 - 100), and specify colour scheme
-	- increase width of region surrounding peaks to 2kb from 1kb
+	[done] increase width of region surrounding peaks to 2kb from 1kb
 	- look at 'meta-peak' signal for each cluster and each condition
 
 Transient vs stable DA peaks:
