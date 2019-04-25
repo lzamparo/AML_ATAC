@@ -23,8 +23,10 @@ colnames(files) <- c("condition","replicate")
 files$Filename = str_split(files$replicate, "_S[0-9]{1,2}", simplify=TRUE)[,1]
 
 # Drop S3; it does not contain the SRSF2 mutation :/
+# Also drop: A3 (ASXL1_34), SA1 (SfA_40), they show strange patterns from RNA-seq analyses
 files = data.table(files)
-files = files[Filename != "SRSF2_c1_8",]
+files = files[!(Filename %in% c("SRSF2_c1_8", "ASXL1_34_1_repeat", "SfA_40")),]
+
 
 # load data by condition & replicate into a count matrix
 get_counts <- function(myrow){
@@ -57,7 +59,7 @@ col_data[, Condition := factor(Condition, levels = c("P", "A", "S", "SA", "SAR",
 col_data[, Adapter := factor(c(rep("Good",10),"Bad", rep("Good",10)), levels=c("Good","Bad"))]  # Including adapter data from Tiansu
 
 # drop S3 
-col_data = col_data[Filename != "SRSF2_c1_8",]
+col_data = col_data[!(Filename %in% c("SRSF2_c1_8", "ASXL1_34_1_repeat", "SfA_40")),]
 
 # set colnames of the count_matrix to same
 # *** ENSURE THAT THE COLNAMES OF THE COUNT MATRIX CORRESPOND WITH THE ORDER IN WHICH THE COLUMNS OF THE MATRIX WERE READ IN: i.e `files` ***
@@ -89,62 +91,62 @@ sig_alpha <- 0.05
 # A vs P
 res_A_P <- results(dds_peaks, contrast=c("Condition", "A", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_A_P)
-idx <- res_A_P$padj < 0.05
+idx <- res_A_P$padj < sig_alpha
 A_P_diff_peaks <- rownames(res_A_P)[idx]
 
 res_S_P <- results(dds_peaks, contrast=c("Condition", "S", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_S_P)
-idx <- res_S_P$padj < 0.05
+idx <- res_S_P$padj < sig_alpha
 S_P_diff_peaks <- rownames(res_S_P)[idx]
 
 # SA vs P
 res_SA_P<- results(dds_peaks, contrast=c("Condition", "SA", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SA_P)
-idx <- res_SA_P$padj < 0.05
+idx <- res_SA_P$padj < sig_alpha
 SA_P_diff_peaks <- rownames(res_SA_P)[idx]
 
 # SAR vs P
 res_SAR_P <- results(dds_peaks, contrast=c("Condition", "SAR", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SAR_P)
-idx <- res_SAR_P$padj < 0.05
+idx <- res_SAR_P$padj < sig_alpha
 SAR_P_diff_peaks <- rownames(res_SAR_P)[idx]
 
 # SARF vs P
 res_SARF_P <- results(dds_peaks, contrast=c("Condition", "SARF", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SARF_P)
-idx <- res_SARF_P$padj < 0.05
+idx <- res_SARF_P$padj < sig_alpha
 SARF_P_diff_peaks <- rownames(res_SARF_P)[idx]
 
 # SARN vs P
 res_SARN_P <- results(dds_peaks, contrast=c("Condition", "SARN", "P"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SARN_P)
-idx <- res_SARN_P$padj < 0.05
+idx <- res_SARN_P$padj < sig_alpha
 SARN_P_diff_peaks <- rownames(res_SARN_P)[idx]
 
 ### Now look at SA vs S, SA vs A, SAR vs SA, SARN vs SAR , SARF vs SAR
 res_SA_S <- results(dds_peaks, contrast=c("Condition", "SA", "S"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SA_S)
-idx <- res_SA_S$padj < 0.05
+idx <- res_SA_S$padj < sig_alpha
 SA_S_diff_peaks <- rownames(res_SA_S)[idx]
 
 res_SA_A <- results(dds_peaks, contrast=c("Condition", "SA", "A"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SA_A)
-idx <- res_SA_A$padj < 0.05
+idx <- res_SA_A$padj < sig_alpha
 SA_A_diff_peaks <- rownames(res_SA_A)[idx]
 
 res_SAR_SA <- results(dds_peaks, contrast=c("Condition", "SAR", "SA"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SAR_SA)
-idx <- res_SAR_SA$padj < 0.05
+idx <- res_SAR_SA$padj < sig_alpha
 SAR_SA_diff_peaks <- rownames(res_SAR_SA)[idx]
 
 res_SARN_SAR <- results(dds_peaks, contrast=c("Condition", "SARN", "SAR"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SARN_SAR)
-idx <- res_SARN_SAR$padj < 0.05
+idx <- res_SARN_SAR$padj < sig_alpha
 SARN_SAR_diff_peaks <- rownames(res_SARN_SAR)[idx]
 
 res_SARF_SAR <- results(dds_peaks, contrast=c("Condition", "SARF", "SAR"), alpha=sig_alpha, independentFiltering=TRUE, parallel=TRUE)
 summary(res_SARF_SAR)
-idx <- res_SARF_SAR$padj < 0.05
+idx <- res_SARF_SAR$padj < sig_alpha
 SARF_SAR_diff_peaks <- rownames(res_SARF_SAR)[idx]
 
 setwd('../../results/DESeq')
